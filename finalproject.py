@@ -34,18 +34,27 @@ def process_image(image_path_str: str):
             print(f"Successfully loaded: {path.name}")
             print(f"Image Format     : {img.format}")
             print(f"Image Size       : {img.width}x{img.height} pixels")
+            print(f"Color Mode       : {img.mode}")
             palette = img.getpalette(rawmode="BGR")
             if palette is not None:
-                print(f"Palette       : {palette}")
-                print(f"Palette       : {len(palette)}")
+                createPalette(palette)
             else: 
-                print("Image has no palette")
+                if img.mode == "1":
+                    print("Image is a 1-bit pixel image")
+                else:
+                    print("Image has no palette")
             
             
            
 
     except Exception as e:
         print(f"Error reading image: {e}")
+
+
+def createPalette(palette: list):
+    paletteSize: int = int(len(palette) / 3)
+    print(f"Palette       : {palette}")
+    print(f"Palette       : {paletteSize}")
 
 
 def main():
