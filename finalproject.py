@@ -1,6 +1,16 @@
 import argparse
 from pathlib import Path
 from PIL import Image
+from dataclasses import dataclass
+from typing import Tuple
+from itertools import batched
+
+
+@dataclass
+class ColorData:
+    variance: float
+    bgr: Tuple[int, int, int]
+    binary: int
 
 
 def parse_arguments():
@@ -52,10 +62,23 @@ def process_image(image_path_str: str):
 
 
 def createPalette(palette: list):
-    paletteSize: int = int(len(palette) / 3)
-    print(f"Palette       : {palette}")
-    print(f"Palette       : {paletteSize}")
 
+    sorted_palette = []
+
+    for chunk in batched(palette, 3):
+        bgr = (chunk[0], chunk[1], chunk[2])
+        paletteEntry = ColorData(variance=calcVariance(bgr),bgr=bgr, binary=0)
+        sorted_palette.append(paletteEntry)
+
+    sorted_palette.sort(key=lambda item: item.variance)
+
+    print(sorted_palette)
+    
+
+
+def calcVariance(bgr: tuple):
+    variance = .114 * bgr[0] + .587 * bgr[1] + .299 * bgr[2]
+    return variance
 
 def main():
     """Main execution block."""
