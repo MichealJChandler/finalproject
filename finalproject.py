@@ -14,12 +14,12 @@ class ColorData:
 
 
 def parse_arguments():
-    """Configures and parses command-line arguments."""
+    # Configures and parses command-line arguments.
     parser = argparse.ArgumentParser(
         description="A CLI tool to read and display image dimensions."
     )
 
-    # Positional argument for the image path
+    # Flag detection --hide .\file_path
     parser.add_argument(
         "--hide",
         metavar="FILE_PATH",
@@ -61,10 +61,12 @@ def process_image(image_path_str: str):
         print(f"Error reading image: {e}")
 
 
+# Creates the temp palette, with variances and spot for binary
 def createPalette(palette: list):
 
-    sorted_palette = []
+    sorted_palette = [] # initialize the sorted palette 
 
+# loop through each 3 entries of the palette from the 
     for chunk in batched(palette, 3):
         bgr = (chunk[0], chunk[1], chunk[2])
         paletteEntry = ColorData(variance=calcVariance(bgr),bgr=bgr, binary=0)
@@ -75,10 +77,10 @@ def createPalette(palette: list):
     print(sorted_palette)
     
 
-
+# Calculates the Variance
 def calcVariance(bgr: tuple):
     variance = .114 * bgr[0] + .587 * bgr[1] + .299 * bgr[2]
-    return round(variance, 3)
+    return round(variance, 3) # Round variance to 3 decimal places
 
 def main():
     """Main execution block."""
