@@ -19,10 +19,10 @@ def parse_arguments():
         description="A CLI tool to read and display image dimensions."
     )
 
-    # Flag detection --hide .\file_path
+    # Flag detection --hide .\Host Image .\Message Data
     parser.add_argument(
         "--hide",
-        metavar="FILE_PATH",
+        nargs='+',
         help="Path to the input image file (e.g., path/to/image.jpg)",
     )
 
@@ -32,6 +32,7 @@ def parse_arguments():
 def process_image(image_path_str: str):
     """Safely opens the image file and extracts basic metadata."""
     path = Path(image_path_str)
+    print("path")
 
     # Validate that the file actually exists
     if not path.is_file():
@@ -74,7 +75,13 @@ def createPalette(palette: list):
 
     sorted_palette.sort(key=lambda item: item.variance)
 
+    for i in sorted_palette:
+        i.binary = 1
+
     print(sorted_palette)
+    print(len(sorted_palette))
+
+    # print(sorted_palette)
     
 
 # Calculates the Variance
@@ -85,7 +92,8 @@ def calcVariance(bgr: tuple):
 def main():
     """Main execution block."""
     args = parse_arguments()
-    process_image(args.hide)
+    if args.hide:
+        process_image(args.hide[1])
 
 
 if __name__ == "__main__":
