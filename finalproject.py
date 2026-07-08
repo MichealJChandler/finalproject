@@ -78,7 +78,7 @@ def createPalette(palette: list):
 
 def calcVariance(bgr: tuple):
     variance = .114 * bgr[0] + .587 * bgr[1] + .299 * bgr[2]
-    return variance
+    return round(variance, 3)
 
 def main():
     """Main execution block."""
