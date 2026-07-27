@@ -107,7 +107,7 @@ def process_hide(args):
                 return
 
             sorted_palette, palette_lookup = createPalette(host_palette)
-            host_image = list(host_img.getdata()) 
+            host_image = list(host_img.get_flattened_data()) 
 
             embedded_image, embedded_count = embedMessageIntoHost(
                 host_image, message_values, sorted_palette, palette_lookup, args.bits
@@ -143,7 +143,7 @@ def process_extract(args):
                 print("Error: Stego image has no palette.")
                 return
 
-            stego_data = list(stego_img.getdata())
+            stego_data = list(stego_img.get_flattened_data())
 
             # we read the first 32 bits to retrieve the exact length of the hidden message
             # tells the loop when to stop
