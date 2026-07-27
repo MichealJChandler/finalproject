@@ -28,7 +28,7 @@ class ColorData:
 def parse_arguments():
     # Configures and parses command-line arguments.
     parser = argparse.ArgumentParser(
-        description="A CLI tool to read and display image dimensions."
+        description="A CLI tool to hide 8 bit paletted images using a nearest-luminance-palette substitution technique."
     )
     parser.add_argument(
         "-hide", 
