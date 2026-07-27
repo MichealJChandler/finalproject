@@ -1,10 +1,21 @@
+"""
+CS 4463 - Steganography - Team 11
+Nearest Luminance Palette Hiding Technique
+
+Kiahna Isadore, Micheal Chandler, William Penrose
+
+A command-line tool to hide a message inside, and extract a message from,
+an 8-bit paletted BMP image, using a nearest-luminance-palette substitution
+technique instead of plain LSB substitution.
+"""
+
 import argparse
+import os
 from pathlib import Path
 from PIL import Image
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, Optional
 from itertools import batched
-from typing import Optional
 
 
 @dataclass
@@ -19,14 +30,36 @@ def parse_arguments():
     parser = argparse.ArgumentParser(
         description="A CLI tool to read and display image dimensions."
     )
-
-    # Flag detection --hide .\Host Image .\Message Data
     parser.add_argument(
-        "--hide",
-        nargs='+',
-        help="Path to the input image file (e.g., path/to/image.jpg)",
+        "-hide", 
+        action="store_true", 
+        help="Hide a message in a cover image"
     )
-
+    parser.add_argument(
+        "-extract", 
+        action="store_true", 
+        help="Extract a message from a stego image"
+    )
+    parser.add_argument(
+        "-m", 
+        type=str, 
+        help="Path to message file, or 'random' for random bits"
+    )
+    parser.add_argument(
+        "-c", 
+        type=str, 
+        help="Path to cover image file"
+    )
+    parser.add_argument(
+        "-s", 
+        type=str, 
+        help="Path to stego image file"
+    )
+    parser.add_argument(
+        "-o", 
+        type=str, 
+        help="Path to output file"
+    )
     parser.add_argument(
         "--bits",
         type=int,
@@ -37,53 +70,120 @@ def parse_arguments():
 
     return parser.parse_args()
 
+def get_message_bytes(message_arg: str) -> bytes:
+    # generate random data
+    if message_arg.lower() == "random":
+        print("Generating 256 bytes of random message data...")
+        return os.urandom(256) 
+    
+    msg_path = Path(message_arg)
+    if not msg_path.is_file():
+        raise FileNotFoundError(f"Error: The message file '{message_arg}' does not exist.")
+    
+    with open(msg_path, "rb") as f:
+        return f.read()
 
-def process_image(message_image_path: str, host_image_path: str, num_bits: int):
-
-    """Safely opens the image file and extracts basic metadata."""
-    message_path = Path(message_image_path)
-    host_path = Path(host_image_path)
-
-    # Validate that the file actually exists
-    if not message_path.is_file():
-        print(f"Error: The file '{message_image_path}' does not exist.")
+def process_hide(args):
+    if not args.m or not args.c:
+        print("Error: -hide requires -m <message file> and -c <coverfile>")
         return
-    if not host_path.is_file():
-        print(f"Error: The file '{host_image_path}' does not exist.")
+
+    cover_path = Path(args.c)
+    if not cover_path.is_file():
+        print(f"Error: The cover file '{args.c}' does not exist.")
         return
+
+    output_path = args.o if args.o else "hidden_image.bmp"
 
     try:
-        # Open and load the image using Pillow
-        with Image.open(host_path) as host_img:
-            host_palette = host_img.getpalette(rawmode="BGR")
-            if host_palette is not None:
-                sorted_palette, palette_lookup = createPalette(host_palette)
-                host_image = host_img.get_flattened_data()  # Load host image pixels
-                try:
-                    with Image.open(message_path) as message_img:
-                        message_palette = message_img.getpalette(rawmode="BGR")
-                        if message_palette is not None:
-                            message_image = message_img.get_flattened_data()  # Load message image pixels
-                            message_values = convertMessagetoValues(message_image, num_bits)
-                            message_values = addMessageLength(message_values, num_bits)
-                            embedded_image, embedded_count = embedMessageIntoHost(host_image, message_values, sorted_palette, palette_lookup, num_bits)
-                            if embedded_count < len(message_values):
-                                print("Warning: Message was too large.")
-                                print(f"Embedded {embedded_count}/{len(message_values)} values.")
-                            else:
-                                print("Message fully embedded.")
+        message_bytes = get_message_bytes(args.m)
+        message_values = convertMessagetoValues(message_bytes, args.bits)
+        message_values = addMessageLength(message_values, args.bits)
 
-                            host_img.putdata(embedded_image)
-                            host_img.save("hidden_image.bmp")
-                except Exception as e:
-                    print(f"Error reading image: {e}")
-            else: 
-                if host_img.mode == "1":
-                    print("Image is a 1-bit pixel image")
-                else:
-                    print("Image has no palette")
+        with Image.open(cover_path) as host_img:
+            host_palette = host_img.getpalette(rawmode="BGR")
+            if host_palette is None:
+                print("Error: Image has no palette.")
+                return
+
+            sorted_palette, palette_lookup = createPalette(host_palette)
+            host_image = list(host_img.getdata()) 
+
+            embedded_image, embedded_count = embedMessageIntoHost(
+                host_image, message_values, sorted_palette, palette_lookup, args.bits
+            )
+
+            if embedded_count < len(message_values):
+                print(f"Warning: Message was too large. Embedded {embedded_count}/{len(message_values)} values.")
+            else:
+                print("Message fully embedded.")
+
+            host_img.putdata(embedded_image)
+            host_img.save(output_path)
+            print(f"Stego image successfully saved to {output_path}")
+
     except Exception as e:
-        print(f"Error reading image: {e}")
+        print(f"Error during hiding process: {e}")
+
+def process_extract(args):
+    if not args.s:
+        print("Error: -extract requires -s <stego file>")
+        return
+
+    stego_path = Path(args.s)
+    if not stego_path.is_file():
+        print(f"Error: The stego file '{args.s}' does not exist.")
+        return
+
+    output_path = args.o if args.o else "extracted_message.bin"
+
+    try:
+        with Image.open(stego_path) as stego_img:
+            if stego_img.getpalette() is None:
+                print("Error: Stego image has no palette.")
+                return
+
+            stego_data = list(stego_img.getdata())
+
+            # we read the first 32 bits to retrieve the exact length of the hidden message
+            # tells the loop when to stop
+            length_bits = 32
+            length_chunks_count = len(list(range(0, length_bits, args.bits)))
+            
+            length_binary = ""
+            for i in range(length_chunks_count):
+                chunk_val = determineBits(stego_data[i], args.bits)
+                actual_chunk_len = min(args.bits, length_bits - i * args.bits)
+                length_binary += format(chunk_val, f'0{actual_chunk_len}b')
+                
+            message_length = int(length_binary, 2)
+            
+            message_values = []
+            start_idx = length_chunks_count
+            end_idx = start_idx + message_length
+            
+            for i in range(start_idx, end_idx):
+                if i >= len(stego_data):
+                    break 
+                chunk_val = determineBits(stego_data[i], args.bits)
+                message_values.append(chunk_val)
+
+            message_binary = ""
+            for chunk_val in message_values:
+                message_binary += format(chunk_val, f'0{args.bits}b')
+                
+            extracted_bytes = bytearray()
+            for i in range(0, len(message_binary), 8):
+                byte_chunk = message_binary[i:i+8]
+                if len(byte_chunk) == 8: 
+                    extracted_bytes.append(int(byte_chunk, 2))
+
+            with open(output_path, "wb") as f:
+                f.write(extracted_bytes)
+            print(f"Message successfully extracted and saved to {output_path}")
+
+    except Exception as e:
+        print(f"Error during extraction process: {e}")
 
 
 # Creates the sorted palette and the lookup dictionary
@@ -164,16 +264,14 @@ def colorDistance(color1: Tuple[int,int,int],
                   color2: Tuple[int,int,int]) -> int:
     return abs(color1[0] - color2[0]) + abs(color1[1] - color2[1]) + abs(color1[2] - color2[2])
 
-def convertMessagetoValues(message_image, num_bits: int):
-    """Converts the message image to a list of bits."""
+def convertMessagetoValues(message_bytes: bytes, num_bits: int):
     message_values = []
-    for pixel in message_image:
-        bits = format(pixel, '08b')  # Convert pixel value to 8-bit binary
+    for byte in message_bytes:
+        bits = format(byte, '08b')  
         for i in range(0, 8, num_bits):
             chunk = bits[i:i+num_bits]
             if len(chunk) < num_bits:
                 chunk = chunk.ljust(num_bits, "0")
-
             message_values.append(int(chunk, 2))
     return message_values
 
@@ -226,11 +324,14 @@ def addMessageLength(message_values, num_bits, length_bits=32):
     return length_values + message_values
 
 def main():
-    """Main execution block."""
     args = parse_arguments()
-    if args.hide:
-        process_image(args.hide[0], args.hide[1], args.bits)
 
+    if args.hide:
+        process_hide(args)
+    elif args.extract:
+        process_extract(args)
+    else:
+        print("Please specify either -hide or -extract. Use -h for help.")
 
 if __name__ == "__main__":
     main()
