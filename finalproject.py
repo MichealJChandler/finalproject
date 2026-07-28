@@ -114,7 +114,8 @@ def process_hide(args):
             )
 
             if embedded_count < len(message_values):
-                print(f"Warning: Message was too large. Embedded {embedded_count}/{len(message_values)} values.")
+                print(f"Warning: Cover image capacity reached. ")
+                print(f"Only embedded {embedded_count}/{len(message_values)} message chunks.")
             else:
                 print("Message fully embedded.")
 
@@ -161,6 +162,8 @@ def process_extract(args):
             message_values = []
             start_idx = length_chunks_count
             end_idx = start_idx + message_length
+
+            
             
             for i in range(start_idx, end_idx):
                 if i >= len(stego_data):
